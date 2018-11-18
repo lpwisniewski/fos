@@ -107,7 +107,7 @@ object SimplyTypedExtended extends StandardTokenParsers {
         case last :: Nil => last
         case last :: beforeLast :: reversed =>
           reversed.foldLeft(combiner(beforeLast, last)) {
-            case (typeFun, t) => combiner(t, typeFun)
+            case (combined, t) => combiner(t, combined)
           }
       }
     }
