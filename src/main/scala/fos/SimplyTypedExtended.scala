@@ -2,6 +2,7 @@ package fos
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.input._
+import scala.util.parsing.combinator.Parsers
 
 /** This object implements a parser and evaluator for the
   * simply typed lambda calculus found in Chapter 9 of
@@ -100,27 +101,56 @@ object SimplyTypedExtended extends StandardTokenParsers {
       "Nat" ^^^ TypeNat |
       "(" ~> typeParser <~ ")"
 
-  def createRightAssociativeParser[T](p: Parser[T], sep: String, combiner: (T, T) => T): Parser[T] =
-    repsep(p, sep) ^^ {
-      _.reverse match {
-        case Nil => sys.error("should not be here")
-        case last :: Nil => last
-        case last :: beforeLast :: reversed =>
-          reversed.foldLeft(combiner(beforeLast, last)) {
-            case (combined, t) => combiner(t, combined)
-          }
-      }
+  /*
+   * pour l'instant on accepte qu'un seul séparateur, il faudrait en accepter plusieurs
+   * ensuite il faudrait un autre argument qui soit une map prenant un séparateur (i.e. "*" ou "+")
+   * et qui retourne un combinateur
+   */
+
+  def createRightAssociativeParser[T](p: Parser[T], sepToCombiner: Map[String, (T, T) => T]): Parser[T] = {
+    val sepsParser = sepToCombiner.keys.foldLeft[Option[Parser[String]]](None) {
+      case (None, sep)         => Some(sep)
+      case (Some(parser), sep) => Some(parser | sep)
+    }.getOrElse(sys.error("empty keys"))
+
+    def combine(t1: T, sep: String, t2: T): T = sepToCombiner(sep)(t1, t2)
+
+    def helper(firstTerm: T, sepsStack: List[String],
+        termsStack: List[T], treatedOpt: Option[T]): T = (sepsStack, termsStack, treatedOpt) match {
+      case (Nil, Nil, None) => firstTerm
+      case (sep :: Nil, Nil, Some(treated)) => combine(firstTerm, sep, treated)
+        
+      case (Nil, t :: rest, _) => sys.error("error: there should have been a separator parsed")
+      
+      case (sep :: otherSeps, term :: otherTerms, Some(treated)) => 
+        helper(firstTerm, otherSeps, otherTerms, Some(combine(term, sep, treated)))
+        
+      case (sep :: otherSeps, last :: beforeLast :: otherTerms, None) => 
+        helper(firstTerm, otherSeps, otherTerms, Some(combine(beforeLast, sep, last)))
+        
+      case (sep :: Nil, last :: Nil, None) => 
+        combine(firstTerm, sep, last) 
+        
+      case _ => sys.error("error on ${firstTerm}, ${sepsStack}, ${termsStack}, ${treatedOpt}")
+
     }
+
+    p ~ rep(sepsParser ~ p) ^^ { // TODO add the case of Nil input (of repsep)
+      case t ~ rest => //TODO use t at the end
+        val (seps, terms) = rest.map { case sep ~ t => (sep, t) }.unzip
+        helper(t, seps, terms, None)
+    }
+  }
 
   /** SimpleType ::= BaseType [ ("*" SimpleType) | ("+" SimpleType) ]
     */
   def typeSimple: Parser[Type] =
-    createRightAssociativeParser(baseType, "*", TypePair) |
-      createRightAssociativeParser(baseType, "+", TypeSum)
+    createRightAssociativeParser[Type](baseType, Map("*" -> TypePair, "+" -> TypeSum))
 
-  /** Type       ::= SimpleType [ "->" Type ]
-    */
-  def typeParser: Parser[Type] = createRightAssociativeParser(typeSimple, "->", TypeFun)
+  /**
+   * Type       ::= SimpleType [ "->" Type ]
+   */
+  def typeParser: Parser[Type] = createRightAssociativeParser[Type](typeSimple, Map("->" -> TypeFun))
 
   def isNumerical(t: Term): Boolean = t match {
     case Succ(subTerm) => isNumerical(subTerm)
