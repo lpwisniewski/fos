@@ -25,10 +25,15 @@ object SimplyTypedExtended extends StandardTokenParsers {
 
   /** Term     ::= SimpleTerm { SimpleTerm }
     */
+  def fixParser: Parser[Term] = opt("fix") ~ SimpleTerm ^^ {
+    case Some(_) ~ t => Fix(t)
+    case None ~ t => t
+  }
+  
   def Term: Parser[Term] =
-    chainl1[Term](SimpleTerm, success(App))
-
-  chainl1[Term](SimpleTerm, success(App))
+    chainl1[Term](fixParser , success(App))  
+     
+    
 
   /** SimpleTerm ::= "true"
     * | "false"
@@ -76,8 +81,7 @@ object SimplyTypedExtended extends StandardTokenParsers {
       "(" ~> Term <~ ")" |
       (("inl" ~> Term) <~ "as") ~ typeParser ^^ (a => Inl(a._1, a._2)) |
       "inr".~>(Term).<~("as").~(typeParser) ^^ (a => Inr(a._1, a._2)) |
-      matchCase |
-      "fix" ~> Term ^^ Fix.apply
+      matchCase 
 
   def matchCase: Parser[Term] =
     "case".~>(Term).<~("of").<~("inl").~(ident).<~("=>").~(Term).<~("|").<~("inr").~(ident).<~("=>").~(Term)
