@@ -67,21 +67,34 @@ class Tests extends FunSuite {
   parseTest(
     "iszero (\\x: Nat. x) 3", IsZero(App(Abs("x", TypeNat, Var("x")), Succ(Succ(Succ(Zero()))))))
 
-  def pathTest(input: String, expectedPathAsLambdas: List[String]) {
-    val expectedPath: List[Term] = expectedPathAsLambdas.map {
-      SimplyTypedExtended.parse(_) match {
-        case SimplyTypedExtended.Success(terms, _) => terms
-        case e                             => sys.error("Fix this test expected path: " + e)
-      }
-    }
-
+  def generalizedPathTest[U](transformOnParsedInput: List[Term] => U)(input: String, expected: U) { 
     test(s"""testing path of: ${input}""") {
       SimplyTypedExtended.parse(input) match {
         case SimplyTypedExtended.Success(trees, _) =>
-          assert(SimplyTypedExtended.getPathStream(trees).toList == trees :: expectedPath)
+          val transformed = transformOnParsedInput(SimplyTypedExtended.getPathStream(trees).toList)
+          assert(transformed == expected)
         case e => fail("well the parsing did not even work" + e)
       }
     }
+  }
+  
+  def pathTest(input: String, expectedPathAsStrings: List[String]) {
+      val expectedPath: List[Term] = (input :: expectedPathAsStrings).map {
+        SimplyTypedExtended.parse(_) match {
+          case SimplyTypedExtended.Success(terms, _) => terms
+          case e                             => sys.error("Fix this test expected path: " + e)
+        }
+      }
+      
+      generalizedPathTest(ls => ls)(input, expectedPath) 
+  }
+  
+  def outputTest(input: String, expectedOutput: String) {
+    SimplyTypedExtended.parse(expectedOutput) match {
+      case SimplyTypedExtended.Success(expectedTrees, _) => generalizedPathTest(ls => ls.last)(input, expectedTrees)
+      case e => sys.error("fix this test" + e)
+    }
+    
   }
 
   val input1 = "(let x: Bool -> Nat = (\\x: Bool. if x then 1 else 2) in x) true"
@@ -185,4 +198,17 @@ class Tests extends FunSuite {
   } parseTypeTest(s"""${t1} * ${t2} -> ${t3} + ${t4} * ${t5}""", s"""(${t1} * ${t2}) -> (${t3} + (${t4} * ${t5}))""") 
 
   parseTypeTest("Nat -> Bool * Nat * Bool -> Bool", "Nat -> ((Bool * (Nat * Bool)) -> Bool)")
+  
+  val T1 = "Nat -> Nat"
+  val t1  = s"""\\z: Nat. if iszero z then 0 else fct(pred(z))""" //recursively apply pred until the z is zero..
+  
+  outputTest(s"""let x: $T1 -> $T1 = fix (\\fct: $T1. ${t1}) in x 4""", 
+      "0")
+  
+  outputTest(
+      s"""let f1: Nat -> Nat = (\\z: Nat. succ(z)) in 
+          let f2: Nat -> Nat = (\\z: Nat. succ(succ(z))) in
+                             f1 (f2 4)""", "7")
+  
+   
 }
