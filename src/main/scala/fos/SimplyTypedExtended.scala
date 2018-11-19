@@ -81,7 +81,9 @@ object SimplyTypedExtended extends StandardTokenParsers {
 
   def matchCase: Parser[Term] =
     "case".~>(Term).<~("of").<~("inl").~(ident).<~("=>").~(Term).<~("|").<~("inr").~(ident).<~("=>").~(Term)
-      .^^(a => Case(a._1._1._1._1, a._1._1._1._2, a._1._1._2, a._1._2, a._2))
+      .^^ { case caseTerm ~ inlIdent ~ inlBody ~ inrIdent ~ inrBody => 
+          Case(caseTerm, inlIdent, inlBody, inrIdent, inrBody)
+      }
 
   def valuesParser: Parser[Term] =
     ("\\" ~> ident) ~ (":" ~> typeParser) ~ ("." ~> Term) ^^ {

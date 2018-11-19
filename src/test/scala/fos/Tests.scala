@@ -222,15 +222,23 @@ class Tests extends FunSuite {
         """, "6")
         
         
+    val innerCase = 
+      s"""case boolPlusNat of 
+              inl p =>  if p then 1 else 2 |
+              inr n => (\\z: Nat. succ(z)) n"""
+      
+    parseTest(innerCase,
+                Case(Var("boolPlusNat"), 
+                    "p", If(Var("p"), Succ(Zero()), Succ(Succ(Zero()))),
+                    "n", App(Abs("z", TypeNat, Succ(Var("z"))), Var("n"))
+                    ))
         
     outputTest(
       s"""
         let tuple: (Bool + Nat) + Nat = inl(inr(5) as Bool + Nat) as (Bool + Nat) + Nat in
           case tuple of 
             inl boolPlusNat => 
-                case boolPlusNat of 
-                  inl(p) =>  if p then 1 else 2 |
-                  inr (n) => (\\z: Nat. succ(z)) n 
+                ${innerCase}
             | inr x2 => succ(succ(x2))
           
         """, "6")
