@@ -49,6 +49,13 @@ class Tests extends FunSuite {
       }
     }(input, s"""determining type of $input should throw a TypeError""")
   }
+   
+  
+  def assertTypeEquals(input: String, expected: Type) {
+    generalizedTestAfterParsing(SimplyTypedExtended.parse) { parsedTerm: Term =>
+      assert(SimplyTypedExtended.typeof(Nil, parsedTerm) == expected)
+    }(input, s"""Type of $input should equal $expected""")
+  }
 
   // (\x:Nat->Bool. (\y:Nat.(x y)))
   val test1Abs1 = Abs("x", TypeFun(TypeNat, TypeBool), Abs("y", TypeNat, App(Var("x"), Var("y"))))
@@ -250,5 +257,9 @@ class Tests extends FunSuite {
           Case(Var("x"), 
                 "x1", App(Abs("z", TypeNat, Succ(Var("z"))), Var("x1")),
                 "x2", If(IsZero(Var("x2")), Succ(Zero()), Succ(Succ(Zero())))))
+                
+  assertTypeEquals("inl(if iszero 5 then 1 else 0) as Nat + Bool", TypeSum(TypeNat, TypeBool))
+  
+  assertTypeOfFails("inl(if iszero 5 then 1 else 0) as Bool") // this should be a sum type Nat + Bool for example
    
 }
