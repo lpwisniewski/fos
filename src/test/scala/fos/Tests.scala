@@ -211,13 +211,27 @@ class Tests extends FunSuite {
                              f1 (f2 4)""", "7")
                              
                              
-  outputTest(
+  outputTest( // on dirait que le compilo accepte inl(5) as Nat alors qu'on voulait inl(5) as Bool + Nat
       s"""
-        let x: Bool + Nat = inl(5) as Nat in
+        let x: Bool + Nat = inl(5) as Bool + Nat in
           case x of 
             inl x1 => (\\z: Nat. succ(z)) x1 |
             inr x2 => 
               if iszero x2  then 1 else 2
+          
+        """, "6")
+        
+        
+        
+    outputTest(
+      s"""
+        let tuple: (Bool + Nat) + Nat = inl(inr(5) as Bool + Nat) as (Bool + Nat) + Nat in
+          case tuple of 
+            inl boolPlusNat => 
+                case boolPlusNat of 
+                  inl(p) =>  if p then 1 else 2 |
+                  inr (n) => (\\z: Nat. succ(z)) n 
+            | inr x2 => succ(succ(x2))
           
         """, "6")
   
