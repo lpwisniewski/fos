@@ -137,7 +137,7 @@ object SimplyTypedExtended extends StandardTokenParsers {
 
     p ~ rep(sepsParser ~ p) ^^ { // TODO add the case of Nil input (of repsep)
       case t ~ rest => //TODO use t at the end
-        val (seps, terms) = rest.map { case sep ~ t => (sep, t) }.unzip
+        val (seps, terms) = rest.reverse.map { case sep ~ t => (sep, t) }.unzip
         helper(t, seps, terms, None)
     }
   }
