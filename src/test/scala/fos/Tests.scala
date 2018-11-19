@@ -209,6 +209,24 @@ class Tests extends FunSuite {
       s"""let f1: Nat -> Nat = (\\z: Nat. succ(z)) in 
           let f2: Nat -> Nat = (\\z: Nat. succ(succ(z))) in
                              f1 (f2 4)""", "7")
+                             
+                             
+  outputTest(
+      s"""
+        let x: Bool + Nat = inl(5) as Nat in
+          case x of 
+            inl x1 => (\\z: Nat. succ(z)) x1 |
+            inr x2 => 
+              if iszero x2  then 1 else 2
+          
+        """, "6")
   
+  parseTest(s"""case x of 
+            inl x1 => (\\z: Nat. succ(z)) x1 |
+            inr x2 => if iszero x2  then 1 else 2
+          """, 
+          Case(Var("x"), 
+                "x1", App(Abs("z", TypeNat, Succ(Var("z"))), Var("x1")),
+                "x2", If(IsZero(Var("x2")), Succ(Zero()), Succ(Succ(Zero())))))
    
 }
