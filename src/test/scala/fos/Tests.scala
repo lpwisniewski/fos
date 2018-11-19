@@ -174,5 +174,15 @@ class Tests extends FunSuite {
   types.foreach { curType: String =>
     parseTermTest(s"""let x: ${curType} = t1 in t2""", s"""(\\x: ${curType}. t2) t1""")
   }
+  
+  parseTypeTest("Bool->Nat+Nat*Nat", "Bool->(Nat+(Nat*Nat))")
+  for {
+    t1 <- baseTypes
+    t2 <- baseTypes
+    t3 <- baseTypes
+    t4 <- baseTypes
+    t5 <- baseTypes
+  } parseTypeTest(s"""${t1} * ${t2} -> ${t3} + ${t4} * ${t5}""", s"""(${t1} * ${t2}) -> (${t3} + (${t4} * ${t5}))""") 
 
+  parseTypeTest("Nat -> Bool * Nat * Bool -> Bool", "Nat -> ((Bool * (Nat * Bool)) -> Bool)")
 }
