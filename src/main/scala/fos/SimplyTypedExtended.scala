@@ -381,13 +381,13 @@ object SimplyTypedExtended extends StandardTokenParsers {
       case c @ Case(t, x1, t1, x2, t2) => typeof(ctx, t) match {
         case TypeSum(ltpe, rtpe) =>
           val tpe1 = typeof(ctx :+ (x1, ltpe), t1)
-          val tpe2 = typeof(ctx :+ (x1, rtpe), t2)
+          val tpe2 = typeof(ctx :+ (x2, rtpe), t2)
           if (tpe1 == tpe2) tpe1
           else throwError("the two part of match case does not have the same type")
         case _ => throwError("term matched have to be of type TypeSum")
       }
-      case Inr(t, ts @ TypeSum(t1, _)) => if(typeof(ctx, t) == t1) ts else throwError("term is not the same as the declared type")
-      case Inl(t, ts @ TypeSum(_, t2)) => if(typeof(ctx, t) == t2) ts else throwError("term is not the same as the declared type")
+      case Inr(t, ts @ TypeSum(_, t2)) => if(typeof(ctx, t) == t2) ts else throwError("term is not the same as the declared type")
+      case Inl(t, ts @ TypeSum(t1, _)) => if(typeof(ctx, t) == t1) ts else throwError("term is not the same as the declared type")
       case Inr(_, _) => throwError("inr have to be of type TypeSum")
       case Inl(_, _) => throwError("inl have to be of type TypeSum")
       case Fix(t) => typeof(ctx, t) match {
