@@ -263,7 +263,7 @@ class Tests extends FunSuite {
   assertTypeOfFails("inl(if iszero 5 then 1 else 0) as Bool") // this should be a sum type Nat + Bool for example
    
   //we want fix to bind to its left most argument
-  parseTest("fix (\\fct: Nat-> Nat -> Nat. \\x: Nat. \\y: Nat. fct x y) 2 3", //this program would loop infinitely but we just want to test its parsing
+  parseTest("(fix (\\fct: Nat-> Nat -> Nat. \\x: Nat. \\y: Nat. fct x y)) 2 3", //this program would loop infinitely but we just want to test its parsing
         App(
             App(
               Fix(Abs("fct", TypeFun(TypeNat, TypeFun(TypeNat, TypeNat)), Abs("x", TypeNat, Abs("y", TypeNat, App(App(Var("fct"), Var("x")), Var("y")))))), 
@@ -272,9 +272,9 @@ class Tests extends FunSuite {
   )
   
   
-  val recursivePlus = "fix (\\fct: Nat-> Nat -> Nat. \\m: Nat. \\n: Nat. if iszero n then m else fct (succ m) (pred n))"
+  val recursivePlus = "(fix (\\fct: Nat-> Nat -> Nat. \\m: Nat. \\n: Nat. if iszero n then m else fct (succ m) (pred n)))"
   val recursiveTimes = 
-    "\\m: Nat. \\n: Nat. fix (\\fct: Nat -> Nat -> Nat -> Nat. \\m: Nat. \\n: Nat. \\acc: Nat. if iszero m then acc else fct m n (plus n acc)) m n 0" 
+    "\\m: Nat. \\n: Nat. (fix (\\fct: Nat -> Nat -> Nat -> Nat. \\m: Nat. \\n: Nat. \\acc: Nat. if iszero m then acc else fct (pred m) n (plus n acc))) m n 0" 
   
   def factorial(n: Int) = List.range(1, n+1).foldLeft(1)(_*_)
   
@@ -283,12 +283,12 @@ class Tests extends FunSuite {
                  let plus: Nat -> Nat -> Nat = ${recursivePlus} in
                  let times: Nat -> Nat -> Nat = ${recursiveTimes} in
                  let fact: Nat -> Nat = 
-                    fix(\\fct: Nat -> Nat. \\m: Nat.
+                    (fix(\\fct: Nat -> Nat. \\m: Nat.
                       if iszero m then 1 else times m (fct(pred m))
-                    ) in
+                    )) in
                  fact input""", factorial(n).toString())
   }
   
-  testFactorial(5)
+  for (i <- 1 until 7) testFactorial(i)
   
 }
