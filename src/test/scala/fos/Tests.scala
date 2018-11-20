@@ -205,7 +205,8 @@ class Tests extends FunSuite {
   } parseTypeTest(s"""${t1} * ${t2} -> ${t3} + ${t4} * ${t5}""", s"""(${t1} * ${t2}) -> (${t3} + (${t4} * ${t5}))""") 
 
   parseTypeTest("Nat -> Bool * Nat * Bool -> Bool", "Nat -> ((Bool * (Nat * Bool)) -> Bool)")
-  
+  parseTypeTest("Nat -> Bool * Nat * Bool -> Bool", "Nat -> ((Bool * (Nat * Bool)) -> Bool)")
+
   val T1 = "Nat -> Nat"
   val t1  = s"""\\z: Nat. if iszero z then 0 else fct(pred(z))""" //recursively apply pred until the z is zero..
   
@@ -261,7 +262,7 @@ class Tests extends FunSuite {
   assertTypeEquals("inl(if iszero 5 then 1 else 0) as Nat + Bool", TypeSum(TypeNat, TypeBool))
   
   assertTypeOfFails("inl(if iszero 5 then 1 else 0) as Bool") // this should be a sum type Nat + Bool for example
-   
+
   //we want fix to bind to its left most argument
   parseTest("(fix (\\fct: Nat-> Nat -> Nat. \\x: Nat. \\y: Nat. fct x y)) 2 3", //this program would loop infinitely but we just want to test its parsing
         App(
@@ -291,4 +292,7 @@ class Tests extends FunSuite {
   
   for (i <- 1 until 7) testFactorial(i)
   
+  outputTest("letrec x: Nat -> Bool = \\y: Nat. if iszero y then false else x pred y in x 2", "false")
+
+  assertTypeEquals("(\\x: Bool. case inl 3 as Nat + Nat of inl x => x | inr y => y) true", TypeNat)
 }
