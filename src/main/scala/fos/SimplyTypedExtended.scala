@@ -358,7 +358,7 @@ object SimplyTypedExtended extends StandardTokenParsers {
         if (typeThen != typeElse) throwError("then part has not the same type as the else part")
         typeThen
       case Var(x) =>
-        val optTuple: Option[(String, Type)] = ctx.reverse.find { case (s, _) => s == x }
+        val optTuple: Option[(String, Type)] = ctx.find { case (s, _) => s == x }
         optTuple.map(_._2).getOrElse(throwError("untyped variable"))
 
       case Abs(x, typeOfParam, body) => TypeFun(typeOfParam, typeof((x, typeOfParam) :: ctx, body))
@@ -379,8 +379,8 @@ object SimplyTypedExtended extends StandardTokenParsers {
       }
       case Case(t, x1, t1, x2, t2) => typeof(ctx, t) match {
         case TypeSum(ltpe, rtpe) =>
-          val tpe1 = typeof(ctx :+ (x1, ltpe), t1)
-          val tpe2 = typeof(ctx :+ (x2, rtpe), t2)
+          val tpe1 = typeof((x1, ltpe) :: ctx, t1)
+          val tpe2 = typeof((x2, rtpe) :: ctx, t2)
           if (tpe1 == tpe2) tpe1
           else throwError("the two part of match case does not have the same type")
         case _ => throwError("term matched have to be of type TypeSum")
