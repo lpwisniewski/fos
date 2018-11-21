@@ -1,8 +1,6 @@
 package fos
 
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
-import scala.util.parsing.input._
-import scala.util.parsing.combinator.Parsers
 
 /** This object implements a parser and evaluator for the
   * simply typed lambda calculus found in Chapter 9 of
@@ -27,10 +25,8 @@ object SimplyTypedExtended extends StandardTokenParsers {
     */ 
   
   def Term: Parser[Term] =
-    chainl1[Term](SimpleTerm , success(App))  
+    chainl1[Term](SimpleTerm , success(App))
      
-    
-
   /** SimpleTerm ::= "true"
     * | "false"
     * | number
@@ -68,7 +64,7 @@ object SimplyTypedExtended extends StandardTokenParsers {
       "iszero" ~> Term ^^ IsZero |
       ("letrec" ~> ident) ~ (":" ~> typeParser) ~ ("=" ~> Term) ~ ("in" ~> Term) ^^ {
         case varName ~ varType ~ argument ~ body =>
-          App(Abs(varName, varType, body), Fix(Abs("x", varType, argument)))
+          App(Abs(varName, varType, body), Fix(Abs(varName, varType, argument)))
       } |
       ("let" ~> ident) ~ (":" ~> typeParser) ~ ("=" ~> Term) ~ ("in" ~> Term) ^^ {
         case varName ~ varType ~ argument ~ body =>
@@ -381,10 +377,10 @@ object SimplyTypedExtended extends StandardTokenParsers {
         case TypePair(_, type2) => type2
         case _ => throwError("element is not a pair and thus we cannot call snd upon it")
       }
-      case c @ Case(t, x1, t1, x2, t2) => typeof(ctx, t) match {
+      case Case(t, x1, t1, x2, t2) => typeof(ctx, t) match {
         case TypeSum(ltpe, rtpe) =>
-          val tpe1 = typeof(ctx :+ (x1, ltpe), t1)
-          val tpe2 = typeof(ctx :+ (x2, rtpe), t2)
+          val tpe1 = typeof((x1, ltpe) :: ctx, t1)
+          val tpe2 = typeof((x2, rtpe) :: ctx, t2)
           if (tpe1 == tpe2) tpe1
           else throwError("the two part of match case does not have the same type")
         case _ => throwError("term matched have to be of type TypeSum")
