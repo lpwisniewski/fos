@@ -273,6 +273,8 @@ class Tests extends FunSuite {
   
   
   val recursivePlus = "(fix (\\fct: Nat-> Nat -> Nat. \\m: Nat. \\n: Nat. if iszero n then m else fct (succ m) (pred n)))"
+  assertTypeEquals(recursivePlus, TypeFun(TypeNat, TypeFun(TypeNat, TypeNat)))
+  
   val recursiveTimes = 
     "\\m: Nat. \\n: Nat. (fix (\\fct: Nat -> Nat -> Nat -> Nat. \\m: Nat. \\n: Nat. \\acc: Nat. if iszero m then acc else fct (pred m) n (plus n acc))) m n 0" 
   
@@ -290,5 +292,36 @@ class Tests extends FunSuite {
   }
   
   for (i <- 1 until 7) testFactorial(i)
+  
+  val fibs:Stream[Int] = 0 #:: 1 #:: (fibs zip fibs.tail).map{ t => t._1 + t._2 }
+
+  def testFibonacci(n: Int) {
+        outputTest(s"""let input: Nat = $n in
+                 let plus: Nat -> Nat -> Nat = ${recursivePlus} in 
+                 let fibonacci: Nat -> Nat = 
+                    (fix(\\fct: Nat -> Nat. \\m: Nat.
+                      if iszero m then 0
+                      else if iszero (pred m) then 1
+                      else plus (fct (pred pred m)) (fct (pred m))
+                    )) in
+                 fibonacci input""", fibs.take(n).last.toString())
+  }
+  testFibonacci(3)
+
+  assertTypeEquals("inr(inl(5) as Nat + Bool) as (Nat -> Bool) + (Nat + Bool)", 
+      TypeSum(TypeFun(TypeNat, TypeBool), TypeSum(TypeNat, TypeBool)))
+  
+      
+  assertTypeEquals(
+      s"""case inl(\\x: Nat. x) as (Nat -> Nat) + Nat of
+            inl id => \\x: Nat. iszero (id x)  |
+            inr x2 => \\x:Nat. iszero succ(x2)""", TypeFun(TypeNat, TypeBool))
+      
+            
+  val pair1 = "{5, inl(\\x:Nat. x) as (Nat -> Nat) + Bool}"
+  assertTypeEquals(pair1, TypePair(TypeNat, TypeSum(TypeFun(TypeNat, TypeNat), TypeBool)))
+  
+  assertTypeEquals(s"""fst $pair1""", TypeNat)
+  
   
 }
