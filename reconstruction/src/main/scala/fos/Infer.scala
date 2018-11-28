@@ -1,4 +1,5 @@
 package fos
+import scala.collection.immutable
 
 object Infer {
 
@@ -44,10 +45,14 @@ object Infer {
       val (tpe2, constr2) = collect(env, t2)
       (tpe1, (tpecond, BoolType) :: (tpe1, tpe2) :: constr1 ++ constr2 ++ constrcond)
     case Var(str) =>
-      (env.find { case (name, tpe) => name == str }
-        .map(_._2.tp) // TODO Remove get on TP later
-        .getOrElse(throw TypeError("Variable not bounded " + str)),
-        Nil)
+      val tpe: Option[(String, TypeScheme)] = env.find { case (name, tpe) => name == str }
+      tpe match {
+        case Some((str, scheme)) =>
+          val substs: List[(TypeVar, Type)] = scheme.params.map(p => (p, typeGen.nextTypeVar()))
+          val substF: Type => Type = listSubtToSubtFunc(substs)
+          (substF(scheme.tp), Nil)
+        case None => throw TypeError(s"Term $str is not bounded to a type.")
+      }
     case Abs(v, EmptyTypeTree(), t) =>
       val freshTpe = typeGen.nextTypeVar()
       val (tpe, constr) = collect((v, TypeScheme(Nil, freshTpe)) :: env, t)
@@ -60,6 +65,26 @@ object Infer {
       val (tpe2, constr2) = collect(env, t2)
       val freshTpe = typeGen.nextTypeVar()
       (freshTpe, (tpe1, FunType(tpe2, freshTpe)) :: constr1 ++ constr2)
+    case Let(str, EmptyTypeTree(), v, t) =>
+      val (s: Type, c) = collect(env, v)
+      val subst = unify(c)
+      val tpeT = subst(s)
+      val newEnv: Env = env.map{case (str, scheme) => (str, scheme.copy(tp = subst(scheme.tp)))} :+ (str, TypeScheme(generalize(tpeT, env), tpeT))
+      collect(newEnv, t)
+    case Let(str, tp, v, t) => collect(env, App(Abs(str, tp, t), v))
+  }
+
+  def listSubtToSubtFunc(list: List[(TypeVar, Type)]): Type => Type = {
+    def recSubt(tpe: Type): Type = tpe match{
+      case tpe: TypeVar => list.find{case (tv, nt) => tv == tpe}.map(_._2).getOrElse(tpe)
+      case FunType(t1, t2) => FunType(recSubt(t1), recSubt(t2))
+    }
+    recSubt
+  }
+
+  def generalize(t: Type, env: Env): List[TypeVar] = t match {
+    case tv: TypeVar => if(env.flatMap(_._2.params).contains(t)) Nil else tv :: Nil
+    case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
   }
 
   def unify(c: List[Constraint]): Type => Type = ???
