@@ -28,6 +28,7 @@ object Infer {
   def collect(env: Env, t: Term): (Type, List[Constraint]) = t match {
     case True() => (BoolType, Nil)
     case False() => (BoolType, Nil)
+    case Zero() => (NatType, Nil)
     case Pred(t) =>
       val (tpe, constr) = collect(env, t)
       (NatType, (tpe, NatType) :: constr)
@@ -45,7 +46,7 @@ object Infer {
     case Var(str) =>
       (env.find { case (name, tpe) => name == str }
         .map(_._2.tp) // TODO Remove get on TP later
-        .getOrElse(throw TypeError("No type found for " + str)),
+        .getOrElse(throw TypeError("Variable not bounded " + str)),
         Nil)
     case Abs(v, EmptyTypeTree(), t) =>
       val freshTpe = typeGen.nextTypeVar()
