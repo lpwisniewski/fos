@@ -75,7 +75,7 @@ object Infer {
   }
 
   def listSubtToSubtFunc(list: List[(TypeVar, Type)]): Type => Type = {
-    def recSubt(tpe: Type): Type = tpe match{
+    def recSubt(tpe: Type): Type = tpe match {
       case tpe: TypeVar => list.find{case (tv, nt) => tv == tpe}.map(_._2).getOrElse(tpe)
       case FunType(t1, t2) => FunType(recSubt(t1), recSubt(t2))
       case _ => tpe
