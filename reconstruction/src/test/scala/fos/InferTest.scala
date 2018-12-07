@@ -1,6 +1,7 @@
 package fos
 
-import org.scalatest.FunSuite
+import org.scalatest.FunSuite  
+import fos.Infer.Constraint
 
 class InferTest extends FunSuite {
   def parse(s: String): Term = Parser.phrase(Parser.Term)(new Parser.lexical.Scanner(s)) match {
@@ -14,10 +15,13 @@ class InferTest extends FunSuite {
   }
 
   def testTypeAndConstraints(expr: String, t: Type, cstr: List[(Type, Type)]) = {
-    val (tpe, c) = Infer.collect(Nil, parse(expr))
-    assert(tpe == t)
-    assert(cstr == c)
+    test(s"""testing typing of ${expr}, expected type = ${t}, expected constraints ${cstr}""") {
+      val (tpe, c) = Infer.collect(Nil, parse(expr))
+      assert(tpe == t)
+      assert(cstr == c)
+    }
   }
+  
 
   val res: (Type, List[(Type, Type)]) = Infer.collect(Nil, Abs("x", BoolTypeTree(), Var("x")))
 
@@ -27,13 +31,14 @@ class InferTest extends FunSuite {
   testTypeAndConstraints("iszero 0", parseType("Bool"), List((NatType, NatType)))
   testTypeAndConstraints("if iszero 0 then 0 else true", parseType("Nat"), List((BoolType, BoolType), (NatType, BoolType), (NatType, NatType)))
   testTypeAndConstraints("\\x. x", FunType(TypeVar("T1"), TypeVar("T1")), List())
-  testTypeAndConstraints("\\x. if x then 0 else 0", FunType(TypeVar("T2"), NatType), List((TypeVar("T2"), BoolType), (NatType, NatType)))
-  
+  testTypeAndConstraints("\\x. if x then 0 else 0", FunType(TypeVar("T2"), NatType), List((TypeVar("T2"), BoolType), (NatType, NatType))) 
   
   def testTyping(s: String, expected: String) = {
-    val (tpe, c) = Infer.collect(Nil, parse(s))
-    val sub = Infer.unify(c)
-    assert(sub(tpe).toString() == expected)
+    test(s"""testing that after applying substitution from unify on ${s} it equals ${expected}""") {
+      val (tpe, c) = Infer.collect(Nil, parse(s))
+      val sub = Infer.unify(c)
+      assert(sub(tpe).toString() == expected)
+    }
   }
   
   testTyping("\\x. if x then 0 else 0", "(Bool -> Nat)")
@@ -41,4 +46,41 @@ class InferTest extends FunSuite {
   testTyping("(\\x. if iszero x then succ x else pred x) (succ 10)", "Nat")
   
   testTyping("(\\x. if iszero x then succ x else pred x) (if iszero succ 10 then 1 else 0)", "Nat")
+  testTyping("(\\x. \\a. \\b. succ if iszero pred x then succ a else pred b)", "(Nat -> (Nat -> (Nat -> Nat)))")
+  
+  def testTyping(constraints: List[Constraint], inputToExpected: Map[Type, Type]) { 
+    test(s"""testing substitution appied on ${constraints} returns ${inputToExpected}""") {
+      val sub: Type => Type = Infer.unify(constraints)
+      inputToExpected.map{
+        case (input, expected) => 
+          val subOutput = sub(input)
+          assert(subOutput == expected)
+      }
+    }
+  }
+  
+  val constraints: List[Constraint] = List(
+      (FunType(TypeVar("T2"), TypeVar("T2")), 
+          FunType(NatType, TypeVar("T4")))
+  ) 
+  
+  testTyping(constraints, Map[Type, Type](TypeVar("T2") -> NatType, TypeVar("T4") -> NatType))
+  
+ val constraints2 = List[Constraint](
+      (TypeVar("T4") ,BoolType), 
+      (TypeVar("T7"),TypeVar("T10")), 
+      ((FunType(TypeVar("T5"), TypeVar("T5"))), FunType(NatType, TypeVar("T7"))), 
+      (FunType(TypeVar("T8"), TypeVar("T8")), FunType(NatType, TypeVar("T10"))),
+      ((FunType(TypeVar("T2"), TypeVar("T2"))), FunType(BoolType, TypeVar("T4"))))
+      
+val expectedResult =
+  Map[Type, Type](
+    TypeVar("T5") -> NatType,
+    TypeVar("T7") -> NatType,
+    TypeVar("T10") -> NatType,
+    TypeVar("T8") -> NatType,
+    TypeVar("T4") -> BoolType,
+    TypeVar("T2") -> BoolType
+  )
+ testTyping(constraints2, expectedResult) 
 }
