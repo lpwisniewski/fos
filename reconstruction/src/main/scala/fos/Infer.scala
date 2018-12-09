@@ -86,6 +86,7 @@ object Infer {
   def generalize(t: Type, env: Env): List[TypeVar] = t match {
     case tv: TypeVar => if(env.flatMap(_._2.params).contains(t)) Nil else tv :: Nil
     case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
+    case _ => Nil
   }
 
 
@@ -144,7 +145,7 @@ object Infer {
 
     val substitutions: List[Type => Type] = recursivePart(c)
 
-    substitutions.reduceLeft((s1, s2) => s1.andThen(s2))
+    if(substitutions.nonEmpty) substitutions.reduceLeft((s1, s2) => s1.andThen(s2)) else (t: Type) => t
   }
 
 
