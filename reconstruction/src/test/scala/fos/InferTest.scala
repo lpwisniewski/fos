@@ -1,7 +1,7 @@
 package fos
 
 import org.scalatest.FunSuite
-import fos.Infer.Constraint
+import fos.Infer.{Constraint, TypeError}
 
 class InferTest extends FunSuite {
   def parse(s: String): Term = Parser.phrase(Parser.Term)(new Parser.lexical.Scanner(s)) match {
@@ -40,7 +40,14 @@ class InferTest extends FunSuite {
       assert(sub(tpe).toString() == expected)
     }
   }
-  
+
+  def failTyping(s: String) = {
+    test(s"""testing that after applying substitution from unify on ${s} it fails""") {
+      val (tpe, c) = Infer.collect(Nil, parse(s))
+      assertThrows[TypeError](Infer.unify(c))
+    }
+  }
+
   testTyping("\\x. if x then 0 else 0", "(Bool -> Nat)")
   
   testTyping("(\\x. if iszero x then succ x else pred x) (succ 10)", "Nat")
@@ -52,6 +59,12 @@ class InferTest extends FunSuite {
   testTyping("let func = (\\x. x) in if func true then func 0 else func 0", "Nat")
 
   testTyping("(\\x. \\a. \\b. succ if iszero pred x then succ a else pred b)", "(Nat -> (Nat -> (Nat -> Nat)))")
+
+  failTyping("(\\f.\\x. let g = f in g(0)) (\\x.if x then false else true) true")
+
+  testTyping("let double = \\f.\\x. f(f(x)) in if (double (\\x. if x then false else true) false) then double (\\x. x) 0 else 0", "Nat")
+
+  testTyping("let f: Bool -> Bool = \\x. x in f true", "Bool")
 
   def testTyping(constraints: List[Constraint], inputToExpected: Map[Type, Type]) {
     test(s"""testing substitution appied on ${constraints} returns ${inputToExpected}""") {

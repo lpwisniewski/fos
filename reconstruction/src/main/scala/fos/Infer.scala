@@ -65,13 +65,16 @@ object Infer {
       val (tpe2, constr2) = collect(env, t2)
       val freshTpe = typeGen.nextTypeVar()
       (freshTpe, (tpe1, FunType(tpe2, freshTpe)) :: constr1 ++ constr2)
-    case Let(str, EmptyTypeTree(), v, t) =>
+    case Let(str, tp, v, t) =>
       val (s: Type, c) = collect(env, v)
       val subst = unify(c)
       val tpeT = subst(s)
       val newEnv: Env = env.map{case (str, scheme) => (str, scheme.copy(tp = subst(scheme.tp)))} :+ (str, TypeScheme(generalize(tpeT, env), tpeT))
-      collect(newEnv, t)
-    case Let(str, tp, v, t) => collect(env, App(Abs(str, tp, t), v))
+      val (tpe, constr) = collect(newEnv, t)
+      tp match {
+        case EmptyTypeTree() => (tpe, c ++ constr)
+        case _ => (tpe, c ++ constr :+ (s, tp.tpe))
+      }
   }
 
   def listSubtToSubtFunc(list: List[(TypeVar, Type)]): Type => Type = {
@@ -84,8 +87,16 @@ object Infer {
   }
 
   def generalize(t: Type, env: Env): List[TypeVar] = t match {
-    case tv: TypeVar => if(env.flatMap(_._2.params).contains(t)) Nil else tv :: Nil
+    case tv: TypeVar =>
+      if((env.flatMap(t => getTypeVars(t._2.tp)) ++ env.flatMap(_._2.params)).contains(t)) Nil
+      else tv :: Nil
     case FunType(t1, t2) => generalize(t1, env) ++ generalize(t2, env)
+    case _ => Nil
+  }
+
+  def getTypeVars(t: Type): List[TypeVar] = t match {
+    case t: TypeVar => t :: Nil
+    case FunType(t1, t2) => getTypeVars(t1) ++ getTypeVars(t2)
     case _ => Nil
   }
 
@@ -130,7 +141,6 @@ object Infer {
               substOpt.map { subst =>
                 rest.map { case (t1, t2) => (subst(t1), subst(t2)) }
               }.getOrElse(rest)
-
 
             val subst: Type => Type = substOpt
             .getOrElse((s, t) match {
