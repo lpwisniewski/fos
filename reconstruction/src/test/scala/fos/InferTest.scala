@@ -40,6 +40,51 @@ class InferTest extends FunSuite {
       assert(sub(tpe).toString() == expected)
     }
   }
+  
+  //church encoding of pairs
+  testTyping(s"""
+    let TRUE = \\x. \\y. x in
+      let FALSE = \\x. \\y. y in
+        let pair = \\x. \\y. \\f. f x y in
+          let first = \\p. p TRUE in
+            let second = \\p. p FALSE in
+               let p = (pair (pair 0 4) true) in
+                 if iszero first (first p) then second p else false
+    """, "Bool")
+    
+    
+  //test with church numerals
+  val boolNatChurchNumeral = s"""
+    let c0 = \\s. \\z. z in
+    let scc = \\n. \\s. \\z. s (n s z) in
+    
+    let boolScc = \\x. if x then false else true in   
+    let natScc = \\x. succ x in
+    
+    let zeroBool = c0 boolScc true in 
+    let zeroNat = c0 natScc 0 in
+    """
+    
+  testTyping(s"""
+    ${boolNatChurchNumeral} 
+    
+    if iszero zeroNat then zeroBool else false
+    """, "Bool")
+      
+  testTyping(s"""  
+    ${boolNatChurchNumeral}    
+    
+    let plus = \\m. \\n. \\s. \\z. m s (n s z) in 
+    let times = \\m. \\n. m (plus n) c0 in
+    
+    let two = \\s. \\z. (scc scc c0) s z in
+    let three = \\s. \\z. (scc two) s z in 
+     
+    let six = times two three in  
+    
+    if iszero (six natScc zeroNat) then six boolScc zeroBool else false 
+    """, "Bool")
+  
 
   def failTyping(s: String) = {
     test(s"""testing that after applying substitution from unify on ${s} it fails""") {
@@ -98,7 +143,14 @@ class InferTest extends FunSuite {
     failTyping(s"""
     (\\x. let double = \\f. \\y. f (f y) in ((double double) x)) (\\y. succ y) false
     """)  
-     
+    
+    testTyping(s"""
+      let double = \\f. \\y. f (f y) in
+        let quadruple = \\g. \\x. (double (double g)) x in
+          quadruple (\\p. if p then false else true) (iszero (quadruple (\\x. succ x) 0))  
+      """, "Bool")
+      
+      
 
   def testTyping(constraints: List[Constraint], inputToExpected: Map[Type, Type]) {
     test(s"""testing substitution appied on ${constraints} returns ${inputToExpected}""") {
