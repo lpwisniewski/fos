@@ -60,11 +60,45 @@ class InferTest extends FunSuite {
 
   testTyping("(\\x. \\a. \\b. succ if iszero pred x then succ a else pred b)", "(Nat -> (Nat -> (Nat -> Nat)))")
 
+   testTyping(
+   s"""
+     let plus3 = \\x. succ (succ (succ x)) in
+     let double = \\f. \\y. f (f y) in
+     double plus3 0 
+   """, "Nat")
+  
+  failTyping(s"""
+     let plus3 = \\x. succ (succ (succ x)) in
+     let double = \\f. \\y. f (f y) in
+     double plus3 false
+   """)
+   
+   failTyping(s"""
+     let plus3 = \\x. succ (succ (succ x)) in
+     let double = \\f. \\y. f (f y) in
+     double (if iszero double plus3 succ 0 
+     then succ 0
+     else double double)
+   """)
+   
   failTyping("(\\f.\\x. let g = f in g(0)) (\\x.if x then false else true) true")
+  failTyping("(\\f.\\x. let g = f in if x then g(false) else x) (\\x.if x then succ x else pred x) true")
+  failTyping("\\b. if b then 1 else true")
+
+  failTyping("(\\x. x x)")
 
   testTyping("let double = \\f.\\x. f(f(x)) in if (double (\\x. if x then false else true) false) then double (\\x. x) 0 else 0", "Nat")
 
   testTyping("let f: Bool -> Bool = \\x. x in f true", "Bool")
+  
+  testTyping(s"""
+    (\\x. let double = \\f. \\y. f (f y) in ((double double) x)) (\\y. succ y) 
+    """, "(Nat -> Nat)")  
+    
+    failTyping(s"""
+    (\\x. let double = \\f. \\y. f (f y) in ((double double) x)) (\\y. succ y) false
+    """)  
+     
 
   def testTyping(constraints: List[Constraint], inputToExpected: Map[Type, Type]) {
     test(s"""testing substitution appied on ${constraints} returns ${inputToExpected}""") {

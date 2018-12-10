@@ -101,9 +101,9 @@ object Infer {
   }
 
 
-  def sAppearsInT(sName: String, t: Type): Boolean = t match {
+  def firstAppearsInSecond(sName: String, t: Type): Boolean = t match {
     case TypeVar(tName) => tName == sName
-    case FunType(t1, t2) => sAppearsInT(sName, t1) || sAppearsInT(sName, t2)
+    case FunType(t1, t2) => firstAppearsInSecond(sName, t1) || firstAppearsInSecond(sName, t2)
     case NatType => false
     case BoolType => false
   }
@@ -118,45 +118,29 @@ object Infer {
       case _ => currentType
     }
   }
-
-  def unifyHelper(s: Type, t: Type): Option[Type => Type] = s match {
-    case TypeVar(sName) if !sAppearsInT(sName, t) => Some((input: Type) => substituteType(sName, t, input))
-    case TypeVar(_) => throw new TypeError("Unification error on " + (s, t))
-    case _ => None
+ 
+ 
+  def treatGenericCase(typevar: TypeVar, t: Type, cPrime: List[Constraint]): Type => Type = {
+    def subst: Type => Type = t1 => substituteType(typevar.name, t, t1)
+    val cPrimeSubstituted = cPrime.map {
+      case (t1, t2) => (subst(t1), subst(t2))
+    } 
+    subst.andThen(unify(cPrimeSubstituted))
   }
-
-  def unify(c: List[Constraint]): Type => Type = {
-
-    def recursivePart(c: List[Constraint]): List[Type => Type] = {
-      c match {
-        case Nil => Nil
-        case (s, t) :: rest if s == t => recursivePart(rest)
-        case (s, t) :: rest =>
-          val substOpt =
-            unifyHelper(s, t)
-              .orElse(unifyHelper(t, s))
-
-            //from "A tricky detail here lies in the necessity to apply S → T to the remaining constraints in the constraint set."
-            val updatedRest: List[Constraint] =
-              substOpt.map { subst =>
-                rest.map { case (t1, t2) => (subst(t1), subst(t2)) }
-              }.getOrElse(rest)
-
-            val subst: Type => Type = substOpt
-            .getOrElse((s, t) match {
-              case (FunType(s1, s2), FunType(t1, t2)) =>
-                unify((s1, t1) :: (s2, t2) :: updatedRest)
-              case _ => throw new TypeError("impossible to find substitution that satisfies the constraint set")
-            })
-
-          subst :: recursivePart(updatedRest)
-      }
-    }
-
-    val substitutions: List[Type => Type] = recursivePart(c)
-
-    if(substitutions.nonEmpty) substitutions.reduceLeft((s1, s2) => s1.andThen(s2)) else (t: Type) => t
+  
+  def unify(c: List[Constraint]): Type => Type = c match {
+    case Nil => (x => x)
+    case (s, t) :: cPrime if s == t => unify(cPrime)
+    case (x @ TypeVar(varName), t) :: cPrime if !firstAppearsInSecond(varName, t) => 
+        treatGenericCase(x, t, cPrime)
+    case (s, x @ TypeVar(varName)) :: cPrime if !firstAppearsInSecond(varName, s) => 
+        treatGenericCase(x, s, cPrime)
+    case (FunType(s1, s2), FunType(t1, t2)) :: cPrime =>
+      unify((s1, t1) :: (s2, t2) :: cPrime)
+    case _ => throw new TypeError("impossible to find substitution that satisfies the constraint set")
+      
   }
+  
 
 
 }
